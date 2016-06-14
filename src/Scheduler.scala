@@ -14,19 +14,25 @@ class ScheduledJob(releaseTime: Int, processingTime: Int, val startTime: Int) ex
 
   def finishTime: Int = startTime + processingTime
   def waitTime: Int = finishTime - releaseTime
+  override def toString: String = s"ScheduledJob(releaseTime = $releaseTime, processingTime = $processingTime, " +
+    s"startTime = $startTime)"
+}
+
+object ScheduledJob {
+  def apply(j: Job, startTime: Int): ScheduledJob = new ScheduledJob(j.releaseTime, j.processingTime, startTime)
 }
 
 class Scheduler {
   implicit class Schedule(s: Seq[ScheduledJob]) {
     def averageFinishTime: Double = s.map(_.waitTime).sum / s.length
-    def finish: Int = s.tail.finish
+    def finish: Int = s.lastOption.map(_.finishTime).getOrElse(0)
   }
 
   /**
-    * SRPT algorithm for scheduling with preemption
+    * SRPT algorithm for scheduling with preemptionj.start
     * http://www.stern.nyu.edu/om/faculty/pinedo/scheduling/shakhlevich/handout03.pdf
     */
-  private def scheduleUsingSrpt(jobs: Traversable[Job]): Seq[Job] = {
+  def schedule(jobs: Traversable[Job]): Seq[ScheduledJob] = {
     class PreemptiveJob(releaseTime: Int, processingTime: Int) extends Job(releaseTime, processingTime) {
       var processingTimeLeft: Int = processingTime
       var processingTimeStart: Int = Int.MinValue
@@ -42,40 +48,44 @@ class Scheduler {
       jobs.view.map(j => new PreemptiveJob(j.releaseTime, j.processingTime))
         .to[mutable.Stack].sortBy(_.releaseTime)
     val jobsReleased: mutable.PriorityQueue[PreemptiveJob] = mutable.PriorityQueue.empty[PreemptiveJob]
-    val jobsCompleted: mutable.ListBuffer[PreemptiveJob] = mutable.ListBuffer.empty
+    val result: mutable.ListBuffer[ScheduledJob] = mutable.ListBuffer.empty
 
-    val iterator = releaseTimes.iterator.buffered
+    val releaseTimeIterator = releaseTimes.iterator.buffered
     var time: Int = -1
     var currentJob: Option[PreemptiveJob] = None
 
+    def finishJob(job: PreemptiveJob): Unit =
+      result += ScheduledJob(job, Math.max(job.releaseTime, result.finish))
+
     def nextEventTime: Int = currentJob
-      .map(j => Math.min(time + j.processingTimeLeft, iterator.head))
-      .getOrElse(iterator.head)
+      .map(j => Math.min(time + j.processingTimeLeft, releaseTimeIterator.head))
+      .getOrElse(releaseTimeIterator.head)
 
     def incTimeToNextEvent(): Boolean = {
-      val currentJobFinish: Int = currentJob.map(_.processingTimeFinish).getOrElse(Int.MaxValue)
-      val nextReleaseTime: Int = Try(iterator.head).getOrElse(Int.MaxValue)
+      val Never = Int.MaxValue
+      val currentJobFinish: Int = currentJob.map(_.processingTimeFinish).getOrElse(Never)
+      val nextReleaseTime: Int = Try(releaseTimeIterator.head).getOrElse(Never)
       val nextEventTime = Math.min(currentJobFinish, nextReleaseTime)
-      val existsNextEvent = nextEventTime != Int.MaxValue
+      val existsNextEvent = nextEventTime != Never
       if (existsNextEvent) {
         currentJob foreach(_.processingTimeLeft -= nextEventTime - time)
         time = nextEventTime
-        if (iterator.hasNext) iterator.next() // proceed to the next release time
+        if (releaseTimeIterator.hasNext) releaseTimeIterator.next() // proceed to the next release time
       }
       existsNextEvent
     }
 
     while (incTimeToNextEvent()) {
       // work with current job
-      currentJob foreach { j =>
-        require(j.processingTimeLeft >= 0)
+      currentJob foreach { job =>
+        require(job.processingTimeLeft >= 0)
         currentJob = None
-        if (j.processingTimeLeft == 0) {
-          // if current job is fully processed, mark it as finished
-          jobsCompleted += j
+        if (job.processingTimeLeft == 0) {
+          // if current job is fully processed, mark it as finished and add it to the resulting schedule
+          finishJob(job)
         } else {
           // if not fully processed, return it to the jobs pool
-          jobsReleased.enqueue(j)
+          jobsReleased.enqueue(job)
         }
       }
 
@@ -86,16 +96,12 @@ class Scheduler {
 
       // start processing a job with shortest remaining processing time
       if (jobsReleased.nonEmpty) {
-        val j = jobsReleased.dequeue()
-        j.processingTimeStart = time
-        currentJob = Some(j)
+        val job = jobsReleased.dequeue()
+        job.processingTimeStart = time
+        currentJob = Some(job)
       }
     }
 
-    jobsCompleted
-  }
-
-  def schedule(jobs: Traversable[Job]): Seq[Job] = {
-    scheduleUsingSrpt(jobs)
+    result
   }
 }
