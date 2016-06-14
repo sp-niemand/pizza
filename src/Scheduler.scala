@@ -1,57 +1,101 @@
-import scala.collection.mutable
+import scala.collection.{SortedSet, mutable}
+import scala.util.Try
 
-trait Job {
-  def added: Int
-  def length: Int
+class Job(val releaseTime: Int, val processingTime: Int) {
+  require(releaseTime >= 0)
+  require(processingTime >= 0)
+  override def toString: String = s"Job(releaseTime = $releaseTime, processingTime = $processingTime)"
 }
 
-class Scheduler[T <: Job] {
-  case class ScheduledJob(job: T, start: Int) {
-    require(job.length >= 0)
-    require(job.added >= 0)
-    require(start >= job.added)
+class ScheduledJob(releaseTime: Int, processingTime: Int, val startTime: Int) extends Job(releaseTime, processingTime) {
+  require(processingTime >= 0)
+  require(releaseTime >= 0)
+  require(startTime >= releaseTime)
 
-    def finish: Int = start + job.length
-    def waitTime: Int = finish - job.added
-  }
+  def finishTime: Int = startTime + processingTime
+  def waitTime: Int = finishTime - releaseTime
+}
 
+class Scheduler {
   implicit class Schedule(s: Seq[ScheduledJob]) {
     def averageFinishTime: Double = s.map(_.waitTime).sum / s.length
     def finish: Int = s.tail.finish
   }
 
-  private class Node(val schedule: Seq[ScheduledJob], left: Traversable[T]) {
-    def betterThan(that: Node): Boolean = this.schedule.averageFinishTime < that.schedule.averageFinishTime
+  /**
+    * SRPT algorithm for scheduling with preemption
+    * http://www.stern.nyu.edu/om/faculty/pinedo/scheduling/shakhlevich/handout03.pdf
+    */
+  private def scheduleUsingSrpt(jobs: Traversable[Job]): Seq[Job] = {
+    class PreemptiveJob(releaseTime: Int, processingTime: Int) extends Job(releaseTime, processingTime) {
+      var processingTimeLeft: Int = processingTime
+      var processingTimeStart: Int = Int.MinValue
+      def processingTimeFinish: Int = processingTimeStart + processingTimeLeft
+    }
+    val releaseTimes: Iterable[Int] = jobs.view.map(_.releaseTime).to[SortedSet]
 
-    def isLeaf: Boolean = left.isEmpty
+    implicit val remainingProcessingTimeOrdering = new Ordering[PreemptiveJob] {
+      override def compare(x: PreemptiveJob, y: PreemptiveJob): Int = y.processingTimeLeft compare x.processingTime
+    }
 
-    def children: Traversable[Node] = {
-      left.map { job =>
-        new Node(
-          schedule :+ ScheduledJob(job, Math.max(schedule.finish, job.added)),
-          left filterNot (_ == job) // TODO: enforce adequate equality check for jobs
-        )
+    val jobsRemaining: mutable.Stack[PreemptiveJob] =
+      jobs.view.map(j => new PreemptiveJob(j.releaseTime, j.processingTime))
+        .to[mutable.Stack].sortBy(_.releaseTime)
+    val jobsReleased: mutable.PriorityQueue[PreemptiveJob] = mutable.PriorityQueue.empty[PreemptiveJob]
+    val jobsCompleted: mutable.ListBuffer[PreemptiveJob] = mutable.ListBuffer.empty
+
+    val iterator = releaseTimes.iterator.buffered
+    var time: Int = -1
+    var currentJob: Option[PreemptiveJob] = None
+
+    def nextEventTime: Int = currentJob
+      .map(j => Math.min(time + j.processingTimeLeft, iterator.head))
+      .getOrElse(iterator.head)
+
+    def incTimeToNextEvent(): Boolean = {
+      val currentJobFinish: Int = currentJob.map(_.processingTimeFinish).getOrElse(Int.MaxValue)
+      val nextReleaseTime: Int = Try(iterator.head).getOrElse(Int.MaxValue)
+      val nextEventTime = Math.min(currentJobFinish, nextReleaseTime)
+      val existsNextEvent = nextEventTime != Int.MaxValue
+      if (existsNextEvent) {
+        currentJob foreach(_.processingTimeLeft -= nextEventTime - time)
+        time = nextEventTime
+        if (iterator.hasNext) iterator.next() // proceed to the next release time
+      }
+      existsNextEvent
+    }
+
+    while (incTimeToNextEvent()) {
+      // work with current job
+      currentJob foreach { j =>
+        require(j.processingTimeLeft >= 0)
+        currentJob = None
+        if (j.processingTimeLeft == 0) {
+          // if current job is fully processed, mark it as finished
+          jobsCompleted += j
+        } else {
+          // if not fully processed, return it to the jobs pool
+          jobsReleased.enqueue(j)
+        }
+      }
+
+      // check if any jobs are ready to be started
+      while(jobsRemaining.nonEmpty && jobsRemaining.top.releaseTime <= time) {
+        jobsReleased.enqueue(jobsRemaining.pop)
+      }
+
+      // start processing a job with shortest remaining processing time
+      if (jobsReleased.nonEmpty) {
+        val j = jobsReleased.dequeue()
+        j.processingTimeStart = time
+        currentJob = Some(j)
       }
     }
+
+    jobsCompleted
   }
 
-  def schedule(jobs: Traversable[T]): Seq[ScheduledJob] = {
-    val stack: mutable.Stack[Node] = mutable.Stack(new Node(Seq.empty, jobs))
-    var best: Node = null // use null because Option is excessive here
-    while (stack.nonEmpty) {
-      val node = stack.pop()
-      val bestTime = if (best == null) Double.PositiveInfinity else best.schedule.averageFinishTime
-      val nodeTime = node.schedule.averageFinishTime
-      if (node.isLeaf) {
-        if (nodeTime < bestTime) {
-          best = node
-        } else {
-          best
-        }
-      } else {
-        if (nodeTime < bestTime) node.children foreach stack.push
-      }
-    }
-    best.schedule
+  def schedule(jobs: Traversable[Job]): Seq[Job] = {
+    scheduleUsingSrpt(jobs)
   }
 }
