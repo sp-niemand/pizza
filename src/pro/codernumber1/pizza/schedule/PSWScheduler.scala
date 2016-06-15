@@ -1,31 +1,19 @@
+package pro.codernumber1.pizza.schedule
+
 import scala.collection.{SortedSet, mutable}
 import scala.util.Try
 
-class Job(val releaseTime: Int, val processingTime: Int) {
-  require(releaseTime >= 0)
-  require(processingTime >= 0)
-  override def toString: String = s"Job(releaseTime = $releaseTime, processingTime = $processingTime)"
-}
-
-class ScheduledJob(releaseTime: Int, processingTime: Int, val startTime: Int) extends Job(releaseTime, processingTime) {
-  require(processingTime >= 0)
-  require(releaseTime >= 0)
-  require(startTime >= releaseTime)
-
-  def finishTime: Int = startTime + processingTime
-  def waitTime: Int = finishTime - releaseTime
-  override def toString: String = s"ScheduledJob(releaseTime = $releaseTime, processingTime = $processingTime, " +
-    s"startTime = $startTime)"
-}
-
-object ScheduledJob {
-  def apply(j: Job, startTime: Int): ScheduledJob = new ScheduledJob(j.releaseTime, j.processingTime, startTime)
-}
-
-class Scheduler {
-  implicit class Schedule(s: Seq[ScheduledJob]) {
-    def averageFinishTime: Double = s.map(_.waitTime).sum / s.length
-    def finish: Int = s.lastOption.map(_.finishTime).getOrElse(0)
+/**
+  * Uses PSW (Phillips, C.; Stein, C. & Wein, J) scheduling algorithm for 1 machine.
+  *
+  * First SRPT (shortest remaining processing time) rule is used to schedule tasks as if they were preemptive.
+  * Then tasks get actually scheduled in order of decreasing completion times according to this temporary schedule.
+  */
+class PSWScheduler extends Scheduler {
+  class PreemptiveJob(releaseTime: Int, processingTime: Int) extends Job(releaseTime, processingTime) {
+    var processingTimeLeft: Int = processingTime
+    var processingTimeStart: Int = Int.MinValue
+    def processingTimeFinish: Int = processingTimeStart + processingTimeLeft
   }
 
   /**
@@ -33,11 +21,8 @@ class Scheduler {
     * http://www.stern.nyu.edu/om/faculty/pinedo/scheduling/shakhlevich/handout03.pdf
     */
   def schedule(jobs: Traversable[Job]): Seq[ScheduledJob] = {
-    class PreemptiveJob(releaseTime: Int, processingTime: Int) extends Job(releaseTime, processingTime) {
-      var processingTimeLeft: Int = processingTime
-      var processingTimeStart: Int = Int.MinValue
-      def processingTimeFinish: Int = processingTimeStart + processingTimeLeft
-    }
+    import ImplicitConversions.Schedule
+
     val releaseTimes: Iterable[Int] = jobs.view.map(_.releaseTime).to[SortedSet]
 
     implicit val remainingProcessingTimeOrdering = new Ordering[PreemptiveJob] {
@@ -56,10 +41,6 @@ class Scheduler {
 
     def finishJob(job: PreemptiveJob): Unit =
       result += ScheduledJob(job, Math.max(job.releaseTime, result.finish))
-
-    def nextEventTime: Int = currentJob
-      .map(j => Math.min(time + j.processingTimeLeft, releaseTimeIterator.head))
-      .getOrElse(releaseTimeIterator.head)
 
     def incTimeToNextEvent(): Boolean = {
       val Never = Int.MaxValue
