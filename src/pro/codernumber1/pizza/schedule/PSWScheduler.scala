@@ -22,28 +22,31 @@ class PSWScheduler extends Scheduler {
     */
   def schedule(jobs: Traversable[Job]): Seq[ScheduledJob] = {
     val releaseTimes: Iterable[Int] = jobs.view.map(_.releaseTime).to[SortedSet]
+    val releaseTimeIterator = releaseTimes.iterator.buffered
 
     implicit val remainingProcessingTimeOrdering = new Ordering[PreemptiveJob] {
       override def compare(x: PreemptiveJob, y: PreemptiveJob): Int = y.processingTimeLeft compare x.processingTime
     }
-
     val jobsRemaining: mutable.Stack[PreemptiveJob] =
       jobs.view.map(j => new PreemptiveJob(j.releaseTime, j.processingTime))
         .to[mutable.Stack].sortBy(_.releaseTime)
-    val jobsReleased: mutable.PriorityQueue[PreemptiveJob] = mutable.PriorityQueue.empty[PreemptiveJob]
-    val result: mutable.ListBuffer[ScheduledJob] = mutable.ListBuffer.empty
 
-    val releaseTimeIterator = releaseTimes.iterator.buffered
+    val jobsReleased: mutable.PriorityQueue[PreemptiveJob] = mutable.PriorityQueue.empty[PreemptiveJob]
+
+    var resultSize: Int = 0
+    val result: Array[ScheduledJob] = new Array(jobs.size)
+
     var time: Int = -1
     var currentJob: Option[PreemptiveJob] = None
 
+    // could use ImplicitConversions.Schedule.finish instead, but this "cache" is more optimal
     var resultingScheduleFinishTime: Int = 0
     def finishJob(job: PreemptiveJob): Unit = {
       val scheduledJob = ScheduledJob(job, Math.max(job.releaseTime, resultingScheduleFinishTime))
-      result += scheduledJob
+      result(resultSize) = scheduledJob
+      resultSize += 1
       resultingScheduleFinishTime = scheduledJob.finishTime
     }
-
 
     def incTimeToNextEvent(): Boolean = {
       val Never = Int.MaxValue
