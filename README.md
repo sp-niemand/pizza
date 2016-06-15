@@ -31,9 +31,12 @@ based on the "shortest remaining processing time" rule.
 ## Run
 * Clone this repository
 * Use SBT (`sbt run`)
-* Enter the data according to the PDF manual
+* Enter the data
 
 OR
 
 * You can pipe the data to the program using something like 
 `cat <datafile> | sbt run`
+
+## Tests
+`sbt test`
