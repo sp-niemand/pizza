@@ -1,6 +1,6 @@
 package pro.codernumber1.pizza
 
-import pro.codernumber1.pizza.schedule.{EarliestStartTimeScheduler, Job, PSWScheduler}
+import pro.codernumber1.pizza.schedule.{EarliestReleaseTimeScheduler, Job, PSWScheduler}
 
 import scala.collection.mutable
 import scala.util.Random
@@ -21,8 +21,8 @@ object Main {
     import pro.codernumber1.pizza.schedule.ImplicitConversions.Schedule
 
     val smartScheduler = new PSWScheduler
-    val naiveScheduler = new EarliestStartTimeScheduler
-    1 to 30 foreach { _ =>
+    val naiveScheduler = new EarliestReleaseTimeScheduler
+    1 to 1 foreach { _ =>
       val L = randomJobs
       val r1 = smartScheduler.schedule(L)
       val r2 = naiveScheduler.schedule(L)

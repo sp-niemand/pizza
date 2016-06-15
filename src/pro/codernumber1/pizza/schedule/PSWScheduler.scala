@@ -39,8 +39,13 @@ class PSWScheduler extends Scheduler {
     var time: Int = -1
     var currentJob: Option[PreemptiveJob] = None
 
-    def finishJob(job: PreemptiveJob): Unit =
-      result += ScheduledJob(job, Math.max(job.releaseTime, result.finish))
+    var resultingScheduleFinishTime: Int = 0
+    def finishJob(job: PreemptiveJob): Unit = {
+      val scheduledJob = ScheduledJob(job, Math.max(job.releaseTime, resultingScheduleFinishTime))
+      result += scheduledJob
+      resultingScheduleFinishTime = scheduledJob.finishTime
+    }
+
 
     def incTimeToNextEvent(): Boolean = {
       val Never = Int.MaxValue
