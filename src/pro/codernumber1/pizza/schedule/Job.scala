@@ -1,22 +1,22 @@
 package pro.codernumber1.pizza.schedule
 
-class Job(val releaseTime: Int, val processingTime: Int) {
+abstract class BaseJob(val releaseTime: Int, val processingTime: Int) {
   require(releaseTime >= 0)
-  require(processingTime >= 0)
-  override def toString: String = s"Job(releaseTime = $releaseTime, processingTime = $processingTime)"
+  require(processingTime > 0)
 }
 
-class ScheduledJob(releaseTime: Int, processingTime: Int, val startTime: Int) extends Job(releaseTime, processingTime) {
-  require(processingTime > 0)
-  require(releaseTime >= 0)
+case class Job(override val releaseTime: Int, override val processingTime: Int)
+  extends BaseJob(releaseTime, processingTime)
+
+case class ScheduledJob(override val releaseTime: Int, override val processingTime: Int, startTime: Int)
+  extends BaseJob(releaseTime, processingTime) {
+
   require(startTime >= releaseTime)
 
   def finishTime: Int = startTime + processingTime
   def waitTime: Int = finishTime - releaseTime
-  override def toString: String = s"ScheduledJob(releaseTime = $releaseTime, processingTime = $processingTime, " +
-    s"startTime = $startTime)"
 }
 
 object ScheduledJob {
-  def apply(j: Job, startTime: Int): ScheduledJob = new ScheduledJob(j.releaseTime, j.processingTime, startTime)
+  def apply(j: BaseJob, startTime: Int): ScheduledJob = new ScheduledJob(j.releaseTime, j.processingTime, startTime)
 }
