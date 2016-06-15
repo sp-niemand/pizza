@@ -6,9 +6,7 @@ import scala.io.Source
 import scala.util.control.NonFatal
 import scala.util.{Failure, Try}
 
-object Input {
-  private val source = Source.stdin
-
+class Input(source: Source = Source.stdin) {
   private def lineToJob(line: String): Job = {
     val parts = line.split(' ')
     require(parts.length == 2)

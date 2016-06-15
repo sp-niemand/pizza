@@ -30,7 +30,7 @@ object Main {
 
   def main(args: Array[String]): Unit = {
     import pro.codernumber1.pizza.schedule.ImplicitConversions.Schedule
-    Input.jobs() match {
+    (new Input).jobs() match {
       case Success(jobs) => println(PSWScheduler.schedule(jobs).averageFinishTime)
       case Failure(t) => println(s"Input failure: $t")
     }
