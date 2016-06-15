@@ -21,8 +21,6 @@ class PSWScheduler extends Scheduler {
     * http://www.stern.nyu.edu/om/faculty/pinedo/scheduling/shakhlevich/handout03.pdf
     */
   def schedule(jobs: Traversable[Job]): Seq[ScheduledJob] = {
-    import ImplicitConversions.Schedule
-
     val releaseTimes: Iterable[Int] = jobs.view.map(_.releaseTime).to[SortedSet]
 
     implicit val remainingProcessingTimeOrdering = new Ordering[PreemptiveJob] {

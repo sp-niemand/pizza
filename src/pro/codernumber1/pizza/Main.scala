@@ -7,7 +7,7 @@ import scala.util.Random
 
 object Main {
   private def randomJobs = {
-    val Nb = (20, 30)
+    val Nb = (50000, 100000)
     val N = Random.nextInt(Nb._2 - Nb._1) + Nb._1
     val L = mutable.ListBuffer.empty[Job]
     val jobLength = 100
