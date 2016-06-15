@@ -1,3 +1,5 @@
 .idea
-out
-riskident_pizza.iml
+/out
+/riskident_pizza.iml
+/project/target
+/target

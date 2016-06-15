@@ -15,7 +15,7 @@ object Input {
     new Job(parts.head.toInt, parts.last.toInt)
   }
 
-  def jobs(): Try[Seq[Job]] = {
+  def jobs(): Try[Array[Job]] = {
     val lines = source.getLines()
     Try(lines.next().toInt) recoverWith {
       case NonFatal(t) => Failure(new RuntimeException("Wrong job count given", t))
