@@ -1,9 +1,10 @@
 package pro.codernumber1.pizza
 
+import pro.codernumber1.pizza.io.Input
 import pro.codernumber1.pizza.schedule.{EarliestReleaseTimeScheduler, Job, PSWScheduler}
 
 import scala.collection.mutable
-import scala.util.Random
+import scala.util.{Failure, Random, Success}
 
 object Main {
   private def randomJobs = {
@@ -17,16 +18,21 @@ object Main {
     L
   }
 
-  def main(args: Array[String]): Unit = {
+  private def test = {
     import pro.codernumber1.pizza.schedule.ImplicitConversions.Schedule
-
-    val smartScheduler = new PSWScheduler
-    val naiveScheduler = new EarliestReleaseTimeScheduler
     1 to 1 foreach { _ =>
       val L = randomJobs
-      val r1 = smartScheduler.schedule(L)
-      val r2 = naiveScheduler.schedule(L)
+      val r1 = PSWScheduler.schedule(L)
+      val r2 = EarliestReleaseTimeScheduler.schedule(L)
       println(r1.averageFinishTime, r2.averageFinishTime)
+    }
+  }
+
+  def main(args: Array[String]): Unit = {
+    import pro.codernumber1.pizza.schedule.ImplicitConversions.Schedule
+    Input.jobs() match {
+      case Success(jobs) => println(PSWScheduler.schedule(jobs).averageFinishTime)
+      case Failure(t) => println(s"Input failure: $t")
     }
   }
 }

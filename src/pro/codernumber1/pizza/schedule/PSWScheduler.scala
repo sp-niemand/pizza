@@ -9,7 +9,7 @@ import scala.util.Try
   * First SRPT (shortest remaining processing time) rule is used to schedule tasks as if they were preemptive.
   * Then tasks get actually scheduled in order of decreasing completion times according to this temporary schedule.
   */
-class PSWScheduler extends Scheduler {
+object PSWScheduler extends Scheduler {
   class PreemptiveJob(releaseTime: Int, processingTime: Int) extends Job(releaseTime, processingTime) {
     var processingTimeLeft: Int = processingTime
     var processingTimeStart: Int = Int.MinValue

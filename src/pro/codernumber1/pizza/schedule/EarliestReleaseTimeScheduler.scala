@@ -2,7 +2,7 @@ package pro.codernumber1.pizza.schedule
 
 import scala.util.Sorting.quickSort
 
-class EarliestReleaseTimeScheduler extends Scheduler {
+object EarliestReleaseTimeScheduler extends Scheduler {
   override def schedule(jobs: Traversable[Job]): Seq[ScheduledJob] = {
     // use a single array of ScheduledJob's to conserve memory
     val result = jobs.view.map(ScheduledJob(_, Int.MaxValue)).toArray
