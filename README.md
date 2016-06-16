@@ -25,7 +25,7 @@ This is a scheduling problem of class `1|r>=0|mft` (1-machine,
 with release times, without preemption, optimize by mean flow time).
 
 It is an NP-hard problem, so for a large number of jobs it has no 
-optimal solution in realistic time. Here an approximating algorithm (PSW) is used. It is
+optimal solution in realistic time. Here an approximation algorithm (PSW) is used. It is
 based on the "shortest remaining processing time" rule.
 
 ## Run
