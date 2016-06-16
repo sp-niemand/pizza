@@ -11,8 +11,23 @@ import scala.util.Try
   */
 object PSWScheduler extends Scheduler {
   class PreemptiveJob(releaseTime: Int, processingTime: Int) extends Job(releaseTime, processingTime) {
-    var processingTimeLeft: Int = processingTime
-    var processingTimeStart: Long = Long.MinValue
+    private var _processingTimeStart: Long = Long.MinValue
+    private var _processingTimeLeft: Int = processingTime
+
+    def processingTimeLeft: Int = _processingTimeLeft
+
+    def processFor(t: Int): Unit = {
+      require(t <= _processingTimeLeft)
+      _processingTimeLeft -= t
+    }
+
+    def start(now: Long): Unit = {
+      require(now >= releaseTime)
+      require(now >= _processingTimeStart)
+      _processingTimeStart = now
+    }
+
+    def processingTimeStart: Long = _processingTimeStart
     def processingTimeFinish: Long = processingTimeStart + processingTimeLeft
   }
 
@@ -57,8 +72,9 @@ object PSWScheduler extends Scheduler {
       if (existsNextEvent) {
         // cast to int on the next line is OK, because (nextEventTime - time) can't be
         // greater than max release time or max processing time
-        currentJob foreach(_.processingTimeLeft -= (nextEventTime - time).toInt)
-        time = nextEventTime
+        val timeDiff = (nextEventTime - time).toInt
+        currentJob foreach(_.processFor(timeDiff))
+        time += timeDiff
         if (releaseTimeIterator.hasNext) releaseTimeIterator.next() // proceed to the next release time
       }
       existsNextEvent
@@ -67,7 +83,6 @@ object PSWScheduler extends Scheduler {
     while (incTimeToNextEvent()) {
       // work with current job
       currentJob foreach { job =>
-        require(job.processingTimeLeft >= 0)
         currentJob = None
         if (job.processingTimeLeft == 0) {
           // if current job is fully processed, mark it as finished and add it to the resulting schedule
@@ -85,9 +100,9 @@ object PSWScheduler extends Scheduler {
 
       // start processing a job with shortest remaining processing time
       if (jobsReleased.nonEmpty) {
-        val job = jobsReleased.dequeue()
-        job.processingTimeStart = time
-        currentJob = Some(job)
+        val j = jobsReleased.dequeue()
+        j.start(time)
+        currentJob = Some(j)
       }
     }
 
