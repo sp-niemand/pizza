@@ -12,8 +12,8 @@ import scala.util.Try
 object PSWScheduler extends Scheduler {
   class PreemptiveJob(releaseTime: Int, processingTime: Int) extends Job(releaseTime, processingTime) {
     var processingTimeLeft: Int = processingTime
-    var processingTimeStart: Int = Int.MinValue
-    def processingTimeFinish: Int = processingTimeStart + processingTimeLeft
+    var processingTimeStart: Long = Long.MinValue
+    def processingTimeFinish: Long = processingTimeStart + processingTimeLeft
   }
 
   /**
@@ -36,7 +36,7 @@ object PSWScheduler extends Scheduler {
     var resultSize: Int = 0
     val result: Array[ScheduledJob] = new Array(jobs.size)
 
-    var time: Int = -1
+    var time: Long = -1
     var currentJob: Option[PreemptiveJob] = None
 
     // could use ImplicitConversions.Schedule.finish instead, but this "cache" is more optimal
@@ -49,13 +49,15 @@ object PSWScheduler extends Scheduler {
     }
 
     def incTimeToNextEvent(): Boolean = {
-      val Never = Int.MaxValue
-      val currentJobFinish: Int = currentJob.map(_.processingTimeFinish).getOrElse(Never)
-      val nextReleaseTime: Int = Try(releaseTimeIterator.head).getOrElse(Never)
-      val nextEventTime = Math.min(currentJobFinish, nextReleaseTime)
+      val Never = Long.MaxValue
+      val currentJobFinish: Long = currentJob.map(_.processingTimeFinish).getOrElse(Never)
+      val nextReleaseTime: Long = Try(releaseTimeIterator.head.toLong).getOrElse(Never)
+      val nextEventTime: Long = Math.min(currentJobFinish, nextReleaseTime)
       val existsNextEvent = nextEventTime != Never
       if (existsNextEvent) {
-        currentJob foreach(_.processingTimeLeft -= nextEventTime - time)
+        // cast to int on the next line is OK, because (nextEventTime - time) can't be
+        // greater than max release time or max processing time
+        currentJob foreach(_.processingTimeLeft -= (nextEventTime - time).toInt)
         time = nextEventTime
         if (releaseTimeIterator.hasNext) releaseTimeIterator.next() // proceed to the next release time
       }
