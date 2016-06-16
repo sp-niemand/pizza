@@ -1,4 +1,4 @@
-# Pizza
+# Pizza [![Build Status](https://travis-ci.org/sp-niemand/pizza.svg?branch=master)](https://travis-ci.org/sp-niemand/pizza)
 
 ## Problem description
 
