@@ -67,7 +67,10 @@ class PSWSchedulerTest extends UnitTest {
 
   it should "work for 100000 very long jobs (int overflow test)" in new Fixture {
     jobs = randomJobs(100000, (1000000000, 1000000000), (1000000000, 1000000000))
-    schedule foreach (_.finishTime should be > 0L)
-    schedule.averageFinishTime should be > 0L
+    schedule foreach { j =>
+      j.startTime should be >= 0L
+      j.finishTime should be > 0L
+      j.waitTime should be > 0L
+    }
   }
 }
