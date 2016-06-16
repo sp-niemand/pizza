@@ -8,15 +8,15 @@ abstract class BaseJob(val releaseTime: Int, val processingTime: Int) {
 case class Job(override val releaseTime: Int, override val processingTime: Int)
   extends BaseJob(releaseTime, processingTime)
 
-case class ScheduledJob(override val releaseTime: Int, override val processingTime: Int, startTime: Int)
+case class ScheduledJob(override val releaseTime: Int, override val processingTime: Int, startTime: Long)
   extends BaseJob(releaseTime, processingTime) {
 
   require(startTime >= releaseTime)
 
-  def finishTime: Int = startTime + processingTime
-  def waitTime: Int = finishTime - releaseTime
+  def finishTime: Long = startTime + processingTime
+  def waitTime: Long = finishTime - releaseTime
 }
 
 object ScheduledJob {
-  def apply(j: BaseJob, startTime: Int): ScheduledJob = new ScheduledJob(j.releaseTime, j.processingTime, startTime)
+  def apply(j: BaseJob, startTime: Long): ScheduledJob = new ScheduledJob(j.releaseTime, j.processingTime, startTime)
 }

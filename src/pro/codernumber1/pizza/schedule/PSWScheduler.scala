@@ -40,9 +40,9 @@ object PSWScheduler extends Scheduler {
     var currentJob: Option[PreemptiveJob] = None
 
     // could use ImplicitConversions.Schedule.finish instead, but this "cache" is more optimal
-    var resultingScheduleFinishTime: Int = 0
+    var resultingScheduleFinishTime: Long = 0
     def finishJob(job: PreemptiveJob): Unit = {
-      val scheduledJob = ScheduledJob(job, Math.max(job.releaseTime, resultingScheduleFinishTime))
+      val scheduledJob = ScheduledJob(job, Math.max(job.releaseTime.toLong, resultingScheduleFinishTime))
       result(resultSize) = scheduledJob
       resultSize += 1
       resultingScheduleFinishTime = scheduledJob.finishTime

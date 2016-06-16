@@ -1,7 +1,9 @@
 package pro.codernumber1.pizza.schedule
 
+import pro.codernumber1.pizza.schedule.ImplicitConversions.Schedule
 import pro.codernumber1.pizza.testutil.UnitTest
 
+import scala.concurrent.duration._
 import scala.util.Random
 
 class PSWSchedulerTest extends UnitTest {
@@ -9,12 +11,18 @@ class PSWSchedulerTest extends UnitTest {
     var jobs: Traversable[Job] = Array.empty[Job]
     def schedule: List[ScheduledJob] = PSWScheduler.schedule(jobs).toList
 
-    def randomJobs(jobCount: Int, maxJobLength: Int, maxReleaseTime: Int): Traversable[Job] =
-      (0 until jobCount).view map { _ =>
-        val releaseTime = Random.nextInt(maxReleaseTime)
-        val processingTime = Random.nextInt(maxJobLength)
-        Job(releaseTime, processingTime)
-      }
+    def randomJobs(jobCount: Int, releaseTime: (Int, Int), processingTime: (Int, Int)): Traversable[Job] = {
+      require(processingTime._1 <= processingTime._2)
+      require(releaseTime._1 <= releaseTime._2)
+
+      def boundedRandom(bounds: (Int, Int)): Int =
+        if (bounds._1 == bounds._2) bounds._1 else Random.nextInt(bounds._2 - bounds._1) + bounds._1
+
+      (1 to jobCount).view map (_ => Job(boundedRandom(releaseTime), boundedRandom(processingTime)))
+    }
+
+    def randomJobs(jobCount: Int, maxReleaseTime: Int, maxJobLength: Int): Traversable[Job] =
+      randomJobs(jobCount, (0, maxReleaseTime), (1, maxJobLength))
   }
 
   "PSWScheduler" should "work" in new Fixture {
@@ -49,15 +57,17 @@ class PSWSchedulerTest extends UnitTest {
   }
 
   it should "work for 100000 random jobs in satisfying time" in new Fixture {
-    import ImplicitConversions.Schedule
-
-    import scala.concurrent.duration._
-
     jobs = randomJobs(100000, 1000000000, 1000000000)
     val deadline = 30 seconds fromNow
     val s = schedule
     deadline should not be 'isOverdue
     s should have size 100000
     s.averageFinishTime should be > 0L
+  }
+
+  it should "work for 100000 very long jobs (int overflow test)" in new Fixture {
+    jobs = randomJobs(100000, (1000000000, 1000000000), (1000000000, 1000000000))
+    schedule foreach (_.finishTime should be > 0L)
+    schedule.averageFinishTime should be > 0L
   }
 }
